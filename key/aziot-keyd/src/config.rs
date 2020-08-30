@@ -3,11 +3,18 @@
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct Config {
 	/// Parameters passed down to libaziot-keys. The allowed names and values are determined by the libaziot-keys implementation.
-	pub(crate) aziot_keys: std::collections::BTreeMap<String, String>,
+	pub aziot_keys: std::collections::BTreeMap<String, String>,
 
 	/// Map of preloaded keys from their ID to their location. The location is in a format that the libaziot-keys implementation understands.
 	#[serde(default)]
-	pub(crate) preloaded_keys: std::collections::BTreeMap<String, String>,
+	pub preloaded_keys: std::collections::BTreeMap<String, String>,
+
+	pub endpoints: Endpoints,
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct Endpoints {
+	pub aziot_keyd: http_common::Connector,
 }
 
 #[cfg(test)]
@@ -23,6 +30,9 @@ pkcs11_base_slot = "pkcs11:token=Key pairs?pin-value=1234"
 [preloaded_keys]
 bootstrap = "file:///var/secrets/bootstrap.key"
 device-id = "pkcs11:token=Key pairs;object=device-id?pin-value=1234"
+
+[endpoints]
+aziot_keyd = "unix:///var/run/aziot/keyd.sock"
 "#;
 
 		let actual: super::Config = toml::from_str(actual).unwrap();
@@ -37,6 +47,10 @@ device-id = "pkcs11:token=Key pairs;object=device-id?pin-value=1234"
 				("bootstrap", "file:///var/secrets/bootstrap.key"),
 				("device-id", "pkcs11:token=Key pairs;object=device-id?pin-value=1234"),
 			].iter().map(|&(name, value)| (name.to_owned(), value.to_owned())).collect(),
+
+			endpoints: super::Endpoints {
+				aziot_keyd: http_common::Connector::new(&"unix:///var/run/aziot/keyd.sock".parse().unwrap()).unwrap(),
+			},
 		});
 	}
 }
