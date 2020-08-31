@@ -12,6 +12,7 @@ pub struct Config {
 	#[serde(default)]
 	pub preloaded_certs: std::collections::BTreeMap<String, PreloadedCert>,
 
+	/// Map of service names to endpoint URIs.
 	pub endpoints: Endpoints,
 }
 
@@ -240,9 +241,13 @@ pub enum PreloadedCert {
 	Ids(Vec<String>),
 }
 
+/// Map of service names to endpoint URIs.
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct Endpoints {
+	/// The endpoint that the certd service binds to.
 	pub aziot_certd: http_common::Connector,
+
+	/// The endpoint that the keyd service binds to.
 	pub aziot_keyd: http_common::Connector,
 }
 

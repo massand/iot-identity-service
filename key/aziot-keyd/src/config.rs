@@ -9,11 +9,14 @@ pub struct Config {
 	#[serde(default)]
 	pub preloaded_keys: std::collections::BTreeMap<String, String>,
 
+	/// Map of service names to endpoint URIs.
 	pub endpoints: Endpoints,
 }
 
+/// Map of service names to endpoint URIs.
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct Endpoints {
+	/// The endpoint that the keyd service binds to.
 	pub aziot_keyd: http_common::Connector,
 }
 
