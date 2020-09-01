@@ -1,9 +1,3 @@
-use std::io::Read;
-
-pub(crate) fn authentication_group() -> structopt::clap::ArgGroup<'static> {
-	structopt::clap::ArgGroup::with_name("authentication").required(true)
-}
-
 pub(crate) fn duration_from_secs_str(s: &str) -> Result<std::time::Duration, <u64 as std::str::FromStr>::Err> {
 	Ok(std::time::Duration::from_secs(s.parse()?))
 }

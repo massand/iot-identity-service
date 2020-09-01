@@ -12,7 +12,6 @@
 mod common;
 
 #[derive(Debug, structopt::StructOpt)]
-#[structopt(group = common::authentication_group())]
 struct Options {
 	#[structopt(help = "Whether to use websockets or bare TLS to connect to the Iot Hub", long = "use-websocket")]
 	use_websocket: bool,
