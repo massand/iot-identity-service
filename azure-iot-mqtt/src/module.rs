@@ -68,10 +68,6 @@ impl Client {
 	///
 	///     The keep-alive time advertised to the server. The client will ping the server at half this interval.
 	pub async fn new(
-		iothub_hostname: String,
-		_device_id: &str,
-		_module_id: &str,
-		_authentication: crate::Authentication,
 		transport: crate::Transport,
 
 		will: Option<bytes::Bytes>,
@@ -155,7 +151,7 @@ impl Client {
 		let authentication = crate::Authentication::SasToken{token, server_root_certificate: None};
 		
 		let (inner, num_default_subscriptions) = crate::client_new(
-			iothub_hostname,
+			hub_name,
 
 			device_id.0.as_ref(),
 			Some(module_id.0.as_ref()),
