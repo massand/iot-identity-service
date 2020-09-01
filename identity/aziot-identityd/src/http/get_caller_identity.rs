@@ -12,7 +12,7 @@ pub(super) fn handle(
         let mut inner = inner.lock().await;
 		let inner = &mut *inner;
 
-        let user = aziot_identityd::auth::Uid(0);
+        let user = aziot_identityd::auth::Uid(1003);
         let auth_id = match inner.authenticator.authenticate(user) {
             Ok(auth_id) => auth_id,
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),

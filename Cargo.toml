@@ -1,5 +1,7 @@
 [workspace]
 members = [
+	"azure-iot-mqtt",
+	
 	"cert/aziot-cert-client-async",
 	"cert/aziot-cert-common",
 	"cert/aziot-cert-common-http",
@@ -21,6 +23,8 @@ members = [
 	"key/aziot-key-common-http",
 	"key/aziot-keyd",
 	"key/aziot-keys",
+
+	"mqtt3",
 
 	"openssl2",
 	"openssl-build",

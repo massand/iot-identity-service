@@ -53,7 +53,7 @@ impl Server {
 			return Err(Error::Authorization);
 		}
 
-		self.id_manager.get_device_identity().await
+		self.id_manager.get_module_identity("hostprocess2").await
 	}
 	pub async fn get_identity(&self, auth_id: auth::AuthId, _idtype: &str, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
 
