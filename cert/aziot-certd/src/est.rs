@@ -18,6 +18,8 @@ pub(crate) async fn create_cert(
 		}
 	}
 
+	tls_connector.set_verify(openssl::ssl::SslVerifyMode::NONE);
+
 	if let Some((certs, private_key)) = client_cert {
 		tls_connector.set_private_key(private_key).map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
 

@@ -237,8 +237,8 @@ async fn get_sas_connector(
 }
 
 async fn get_x509_connector(
-	identity_cert: String,
-	identity_pk: String,
+	_identity_cert: String,
+	_identity_pk: String,
 ) -> Result<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>, std::io::Error> {
 	let key_client = {
 		#[derive(Clone, Copy)]
@@ -316,8 +316,26 @@ async fn get_x509_connector(
 		let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())
 			.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
+		let device_id = "device-id";
+
+		let device_id_key_pair_handle =
+			key_client.create_key_pair_if_not_exists(device_id, Some("rsa-2048:*")).await.unwrap();
+		let (device_id_public_key, device_id_private_key) = {
+			let device_id_key_pair_handle = std::ffi::CString::new(device_id_key_pair_handle.0.clone()).unwrap();
+			let device_id_public_key = key_engine.load_public_key(&device_id_key_pair_handle).unwrap();
+			let device_id_private_key = key_engine.load_private_key(&device_id_key_pair_handle).unwrap();
+			(device_id_public_key, device_id_private_key)
+		};
+		let csr =
+			create_csr(device_id, &device_id_public_key, &device_id_private_key)
+			.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)).unwrap();
+		let device_id_cert =
+			cert_client.create_cert(device_id, &csr, None).await.unwrap();
+		let _ = openssl::x509::X509::stack_from_pem(&device_id_cert).unwrap();
+
+		
 		let device_id_private_key = {
-			let device_id_key_handle = key_client.load_key_pair(&identity_pk).await
+			let device_id_key_handle = key_client.load_key_pair(&device_id).await
 				.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 			let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0)
 				.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -329,7 +347,7 @@ async fn get_x509_connector(
 			.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
 		let mut device_id_certs = {
-			let device_id_certs = cert_client.get_cert(&identity_cert).await
+			let device_id_certs = cert_client.get_cert(&device_id).await
 				.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 			let device_id_certs = openssl::x509::X509::stack_from_pem(&device_id_certs)
 				.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?
@@ -352,4 +370,27 @@ async fn get_x509_connector(
 		tls_connector
 	};
 	Ok(connector)
+}
+
+fn create_csr(
+	subject: &str,
+	public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
+	private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
+) -> Result<Vec<u8>, openssl::error::ErrorStack> {
+	let mut csr = openssl::x509::X509Req::builder()?;
+
+	csr.set_version(0)?;
+
+	let mut subject_name = openssl::x509::X509Name::builder()?;
+	subject_name.append_entry_by_text("CN", subject)?;
+	let subject_name = subject_name.build();
+	csr.set_subject_name(&subject_name)?;
+
+	csr.set_pubkey(public_key)?;
+
+	csr.sign(private_key, openssl::hash::MessageDigest::sha256())?;
+
+	let csr = csr.build();
+	let csr = csr.to_pem()?;
+	Ok(csr)
 }
