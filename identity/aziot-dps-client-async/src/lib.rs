@@ -326,13 +326,20 @@ async fn get_x509_connector(
 			let device_id_private_key = key_engine.load_private_key(&device_id_key_pair_handle).unwrap();
 			(device_id_public_key, device_id_private_key)
 		};
-		let csr =
-			create_csr(device_id, &device_id_public_key, &device_id_private_key)
-			.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)).unwrap();
-		let device_id_cert =
-			cert_client.create_cert(device_id, &csr, None).await.unwrap();
+		
+		let device_id_cert = cert_client.get_cert(device_id).await;
+		let device_id_cert = match device_id_cert {
+			Ok(device_id_cert) => device_id_cert,
+			_ => {
+				let csr =
+					create_csr(device_id, &device_id_public_key, &device_id_private_key)
+					.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)).unwrap();
+				let device_id_cert =
+					cert_client.create_cert(device_id, &csr, None).await.unwrap();
+				device_id_cert
+			}
+		};
 		let _ = openssl::x509::X509::stack_from_pem(&device_id_cert).unwrap();
-
 		
 		let device_id_private_key = {
 			let device_id_key_handle = key_client.load_key_pair(&device_id).await
