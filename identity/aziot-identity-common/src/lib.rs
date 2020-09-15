@@ -33,7 +33,7 @@ pub struct AzureIoTSpec {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct AuthenticationInfo {
-    #[serde(rename = "type")]
+    #[serde(rename = "authType")]
     pub auth_type: AuthenticationType,
     #[serde(rename = "keyHandle")]
     pub key_handle: aziot_key_common::KeyHandle,

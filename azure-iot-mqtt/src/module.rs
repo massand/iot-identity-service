@@ -78,7 +78,7 @@ impl Client {
 		
 		let client = reqwest::Client::new();
 		let res = 
-			client.get("http://localhost:8901/identities/identity")
+			client.get("http://127.0.0.1:8901/identity?api-version=2020-06-01")
 			.send()
 			.await.map_err(crate::CreateClientError::Reqwest)?
 			.text().await.map_err(crate::CreateClientError::Reqwest)?;
@@ -86,7 +86,7 @@ impl Client {
 		println!("Get provisioned device response: {:?}", res);
 
 		let identity: aziot_identity_common::Identity = serde_json::from_str(res.as_ref()).map_err(|err| crate::CreateClientError::Serde(err))?;
-		let (hub_name, device_id, module_id, _gen_id, auth) = match identity {
+		let (hub_name, device_id, _module_id, _gen_id, auth) = match identity {
 			aziot_identity_common::Identity::Aziot(device) => (
 				device.hub_name, 
 				device.device_id, 
@@ -110,7 +110,7 @@ impl Client {
 	
 				fn call(&mut self, _req: hyper::Uri) -> Self::Future {
 					let f = async {
-						let stream = tokio::net::TcpStream::connect(("localhost", 8888)).await?;
+						let stream = tokio::net::TcpStream::connect(("127.0.0.1", 8888)).await?;
 						Ok(stream)
 					};
 					Box::pin(f)
@@ -129,7 +129,7 @@ impl Client {
 		let token = {
 			let expiry = chrono::Utc::now() + chrono::Duration::from_std(std::time::Duration::from_secs(300)).unwrap();
 			let expiry = expiry.timestamp().to_string();
-			let audience = format!("{}/devices/{}/modules/{}", hub_name, device_id.0, module_id.0);
+			let audience = format!("{}/devices/{}", hub_name, device_id.0);
 
 			let resource_uri = percent_encoding::percent_encode(audience.to_lowercase().as_bytes(), IOTHUB_ENCODE_SET).to_string();
 			let sig_data = format!("{}\n{}", &resource_uri, expiry);
@@ -154,7 +154,7 @@ impl Client {
 			hub_name,
 
 			device_id.0.as_ref(),
-			Some(module_id.0.as_ref()),
+			None,
 
 			authentication,
 			transport,

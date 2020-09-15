@@ -264,7 +264,7 @@ where
 	TRequest: serde::Serialize,
 	TResponse: serde::de::DeserializeOwned,
 {
-	let uri = format!("http://foo{}", uri);
+	let uri = format!("http://foo{}?api-version=2020-06-01", uri);
 
 	let req =
 		hyper::Request::builder()
