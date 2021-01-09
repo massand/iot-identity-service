@@ -59,10 +59,8 @@ pub async fn main(
     config_path: std::path::PathBuf,
     config_directory_path: std::path::PathBuf,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
-    
     // Written to prev_settings_path if provisioning is successful.
     let settings = settings.check().map_err(InternalError::BadSettings)?;
-    let settings_serialized = toml::to_vec(&settings).expect("serializing settings cannot fail");
 
     let homedir_path = &settings.homedir;
     let connector = settings.endpoints.aziot_identityd.clone();
@@ -90,17 +88,19 @@ pub async fn main(
     let api_watcher = api.clone();
     let (file_changed_tx, mut file_changed_rx) = tokio::sync::mpsc::channel(10);
     let config_directory_path_copy = config_directory_path.clone();
-    
+
     // Start file watcher using blocking channel
     std::thread::spawn(move || {
-        
         let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
 
         // Create a watcher object, delivering debounced events
-        let mut file_watcher = notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
+        let mut file_watcher =
+            notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
 
         // Add configuration path to be watched
-        file_watcher.watch(config_directory_path_copy, notify::RecursiveMode::Recursive).unwrap();
+        file_watcher
+            .watch(config_directory_path_copy, notify::RecursiveMode::Recursive)
+            .unwrap();
 
         loop {
             let _ = file_watcher_rx.recv();
@@ -112,22 +112,21 @@ pub async fn main(
     tokio::task::spawn(async move {
         loop {
             let event = file_changed_rx.recv().await;
-            
-            match event {
-                Some(_) => {
-                    let new_settings = config_common::read_config(config_path.clone(), config_directory_path.clone()).unwrap();
-                    
-                    let mut api_ = api_watcher.lock().await;
-                    let _ = api_
-                        .update_settings(new_settings, ReprovisionTrigger::ConfigurationFileUpdate)
-                        .await;
-                    drop(api_);
-                },
-                None => {},
+
+            if event.is_some() {
+                let new_settings =
+                    config_common::read_config(config_path.clone(), config_directory_path.clone())
+                        .unwrap();
+
+                let mut api_ = api_watcher.lock().await;
+                let _ = api_
+                    .update_settings(new_settings, ReprovisionTrigger::ConfigurationFileUpdate)
+                    .await;
+                drop(api_);
             }
         }
     });
-    
+
     let service = http::Service { api };
 
     Ok((connector, service))
