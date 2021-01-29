@@ -14,7 +14,7 @@ futures-util = "0.3"
 http = "0.2"
 hyper = "0.14"
 hyper-openssl = "0.9"
-hyper-proxy = "0.8"
+hyper-proxy = { git = "https://github.com/massand/hyper-proxy.git", branch = "sslstream"}
 log = "0.4"
 openssl = "0.10"
 percent-encoding = "2"
