@@ -497,6 +497,7 @@ impl IdentityManager {
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
+                    self.proxy_uri.clone(),
                 );
 
                 let device = match attestation {

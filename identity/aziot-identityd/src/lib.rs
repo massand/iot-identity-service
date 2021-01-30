@@ -680,41 +680,6 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
     Ok(expiration)
 }
 
-fn convert_to_map(
-    principal: &[settings::Principal],
-) -> (
-    std::collections::BTreeMap<auth::Uid, settings::Principal>,
-    std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-    std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
-) {
-    let mut local_mmap: std::collections::BTreeMap<
-        aziot_identity_common::ModuleId,
-        Option<settings::LocalIdOpts>,
-    > = std::collections::BTreeMap::new();
-    let mut module_mset: std::collections::BTreeSet<aziot_identity_common::ModuleId> =
-        std::collections::BTreeSet::new();
-    let mut pmap: std::collections::BTreeMap<auth::Uid, settings::Principal> =
-        std::collections::BTreeMap::new();
-
-    for p in principal {
-        if let Some(id_type) = &p.id_type {
-            for i in id_type {
-                match i {
-                    aziot_identity_common::IdType::Module => module_mset.insert(p.name.clone()),
-                    aziot_identity_common::IdType::Local => local_mmap
-                        .insert(p.name.clone(), p.localid.clone())
-                        .is_none(),
-                    _ => true,
-                };
-            }
-        }
-
-        pmap.insert(p.uid, p.clone());
-    }
-
-    (pmap, module_mset, local_mmap)
-}
-
 pub fn get_proxy_uri(https_proxy: Option<String>) -> Result<Option<hyper::Uri>, Error> {
     let proxy_uri = https_proxy
         .or_else(|| env::var("HTTPS_PROXY").ok())
@@ -757,7 +722,7 @@ mod tests {
     use crate::SettingsAuthorizer;
 
     use crate::configext::prepare_authorized_principals;
-    use super::{convert_to_map, get_proxy_uri, Api};
+    use super::{get_proxy_uri, Api};
 
     fn make_empty_settings() -> Settings {
         Settings {
