@@ -1,9 +1,17 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use hyper::client::{HttpConnector, connect::Connection};
+use hyper_openssl::HttpsConnector;
+use hyper_proxy::ProxyConnector;
 use openssl::pkey::{PKey, Private};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use std::{future::Future, io, pin::Pin};
+
+pub enum MaybeProxyStream {
+    NoProxy(HttpsConnector<HttpConnector>),
+    Proxy(ProxyConnector<HttpsConnector<HttpConnector>>),
+}
 
 pub enum MaybeProxyConnector {
     NoProxy(hyper_openssl::HttpsConnector<hyper::client::HttpConnector>),
@@ -73,22 +81,20 @@ impl MaybeProxyConnector {
 impl<C> hyper::service::Service<http::uri::Uri> for MaybeProxyConnector<C> 
 where
     C: hyper::service::Service<http::uri::Uri>,
-    C::Response: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    C::Response: AsyncRead + AsyncWrite + Connection + Send + Unpin + 'static,
     C::Future: Send + 'static,
     C::Error: Into<Box<dyn std::error::Error + Sync + Send>>,
 {
-    type Response = ProxyStream<C::Response>;
+    type Response = MaybeProxyStream;
     type Error = io::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-    {
 
-        fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-            todo!()
-        }
+    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+        todo!()
+    }
 
-        fn call(&mut self, req: http::uri::Uri) -> Self::Future {
-            todo!()
-        }
+    fn call(&mut self, req: http::uri::Uri) -> Self::Future {
+        todo!()
     }
 }
 
