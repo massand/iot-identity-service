@@ -13,6 +13,7 @@ pub async fn get_sas_connector(
     audience: &str,
     key_handle: impl AsRef<[u8]>,
     key_client: &impl KeyClient,
+    proxy_uri: Option<hyper::Uri>,
     is_tpm_registration: bool,
 ) -> io::Result<(
     hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
@@ -59,9 +60,12 @@ pub async fn get_x509_connector(
     key_client: &aziot_key_client_async::Client,
     key_engine: &mut openssl2::FunctionalEngineRef,
     cert_client: &aziot_cert_client_async::Client,
+    proxy_uri: Option<hyper::Uri>,
 ) -> io::Result<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>> {
     let connector = {
         let mut tls_connector =
+            openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
+        let mut proxy_tls_connector =
             openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
 
         let device_id_private_key = {
@@ -73,6 +77,7 @@ pub async fn get_x509_connector(
             device_id_private_key
         };
         tls_connector.set_private_key(&device_id_private_key)?;
+        proxy_tls_connector.set_private_key(&device_id_private_key)?;
 
         let mut device_id_certs = {
             let device_id_certs = cert_client.get_cert(&identity_cert).await?;
@@ -84,8 +89,11 @@ pub async fn get_x509_connector(
             io::Error::new(io::ErrorKind::Other, "device identity cert not found")
         })?;
         tls_connector.set_certificate(&client_cert)?;
+        proxy_tls_connector.set_certificate(&client_cert)?;
+
         for cert in device_id_certs {
-            tls_connector.add_extra_chain_cert(cert)?;
+            tls_connector.add_extra_chain_cert(cert.clone())?;
+            proxy_tls_connector.add_extra_chain_cert(cert)?;
         }
 
         let mut http_connector = hyper::client::HttpConnector::new();
@@ -156,67 +164,4 @@ impl KeyClient for aziot_tpm_client_async::Client {
     async fn sign_with_key(&self, _key_handle: &(), data: &[u8]) -> io::Result<Vec<u8>> {
         self.sign_with_auth_key(data).await
     }
-}
-
-pub enum MaybeProxyClient {
-    NoProxy(hyper::Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>),
-    Proxy(
-        hyper::Client<
-            hyper_proxy::ProxyConnector<
-                hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
-            >,
-        >,
-    ),
-}
-
-impl MaybeProxyClient {
-    pub fn build(
-        proxy_uri: Option<hyper::Uri>,
-        connector: hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
-    ) -> io::Result<Self> {
-        if let Some(proxy_uri) = proxy_uri {
-            let proxy = uri_to_proxy(proxy_uri)?;
-            let proxy_connector =
-                hyper_proxy::ProxyConnector::from_proxy(connector.clone(), proxy)?;
-            let client = hyper::Client::builder().build(proxy_connector);
-            Ok(MaybeProxyClient::Proxy(client))
-        } else {
-            let client = hyper::Client::builder().build(connector);
-            Ok(MaybeProxyClient::NoProxy(client))
-        }
-    }
-
-    pub fn request(&self, req: hyper::Request<hyper::Body>) -> hyper::client::ResponseFuture {
-        match *self {
-            MaybeProxyClient::NoProxy(ref client) => client.request(req),
-            MaybeProxyClient::Proxy(ref client) => client.request(req),
-        }
-    }
-}
-
-pub fn uri_to_proxy(uri: hyper::Uri) -> io::Result<hyper_proxy::Proxy> {
-    let proxy_url =
-        url::Url::parse(&uri.to_string()).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-    let mut proxy = hyper_proxy::Proxy::new(hyper_proxy::Intercept::All, uri);
-
-    if !proxy_url.username().is_empty() {
-        let username = percent_encoding::percent_decode_str(proxy_url.username())
-            .decode_utf8()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        let credentials = match proxy_url.password() {
-            Some(password) => {
-                let password = percent_encoding::percent_decode_str(password)
-                    .decode_utf8()
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-
-                typed_headers::Credentials::basic(&username, &password)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
-            }
-            None => typed_headers::Credentials::basic(&username, "")
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
-        };
-        proxy.set_authorization(credentials);
-    }
-
-    Ok(proxy)
 }

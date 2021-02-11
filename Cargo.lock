@@ -1155,13 +1155,17 @@ dependencies = [
  "futures-util",
  "http",
  "hyper",
+ "hyper-openssl",
+ "hyper-proxy",
  "libc",
  "log",
  "nix",
+ "openssl",
  "percent-encoding",
  "serde",
  "serde_json",
  "tokio",
+ "typed-headers",
  "url",
 ]
 

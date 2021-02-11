@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector, MaybeProxyClient};
+use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector};
 
 pub mod model;
 
@@ -230,13 +230,14 @@ impl Client {
             | DpsAuthKind::TpmWithAuth { auth_key: key } => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
                 let (connector, token) = if matches!(auth_kind, DpsAuthKind::SymmetricKey { .. }) {
-                    get_sas_connector(&audience, &key, &*self.key_client, false).await?
+                    get_sas_connector(&audience, &key, &*self.key_client, self.proxy_uri.clone(), false).await?
                 } else {
                     get_sas_connector(
                         &audience,
                         &base64::decode(key)
                             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
                         &*self.tpm_client,
+                        self.proxy_uri.clone(),
                         true,
                     )
                     .await?
@@ -258,13 +259,13 @@ impl Client {
                     &self.key_client,
                     &mut *self.key_engine.lock().await,
                     &self.cert_client,
+                    self.proxy_uri.clone(),
                 )
                 .await?
             }
         };
 
-        let client = MaybeProxyClient::build(self.proxy_uri.clone(), connector)?;
-
+        let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
         log::debug!("DPS request {:?}", req);
 
         let res = client

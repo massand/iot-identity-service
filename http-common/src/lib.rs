@@ -21,6 +21,7 @@ mod connector;
 pub use connector::AsyncStream;
 pub use connector::{Connector, ConnectorError, Stream};
 
+pub mod proxy;
 pub mod server;
 
 #[cfg(feature = "tokio1")]
