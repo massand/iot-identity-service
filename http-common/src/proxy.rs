@@ -67,13 +67,22 @@ impl MaybeProxyConnector {
             Ok(MaybeProxyConnector::NoProxy(https_connector))
         }
     }
+}
 
-    // pub fn request(&self, req: hyper::Request<hyper::Body>) -> hyper::client::ResponseFuture {
-    //     match *self {
-    //         MaybeProxyConnector::NoProxy(ref client) => client.request(req),
-    //         MaybeProxyConnector::Proxy(ref client) => client.request(req),
-    //     }
-    // }
+impl hyper::service::Service<http::uri::Uri> for MaybeProxyConnector {
+    type Response = AsyncStream;
+    type Error = std::io::Error;
+    type Future = std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>,
+    >;
+
+    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+        todo!()
+    }
+
+    fn call(&mut self, req: http::uri::Uri) -> Self::Future {
+        todo!()
+    }
 }
 
 pub fn uri_to_proxy(uri: hyper::Uri) -> io::Result<hyper_proxy::Proxy> {
