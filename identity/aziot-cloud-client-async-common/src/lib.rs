@@ -17,7 +17,7 @@ pub async fn get_sas_connector(
     key_client: &impl KeyClient,
     proxy_uri: Option<hyper::Uri>,
     is_tpm_registration: bool,
-) -> io::Result<(MaybeProxyConnector,String)> {
+) -> io::Result<(MaybeProxyConnector, String)> {
     let key_handle = key_client.insert_key(key_handle.as_ref()).await?;
 
     let token = {
@@ -72,7 +72,8 @@ pub async fn get_x509_connector(
 
     let device_id_certs = cert_client.get_cert(&identity_cert).await?;
 
-    let proxy_connector = MaybeProxyConnector::build(proxy_uri, Some(device_id_private_key, device_id_certs))?;
+    let proxy_connector =
+        MaybeProxyConnector::build(proxy_uri, Some(device_id_private_key, device_id_certs))?;
     Ok(proxy_connector)
 }
 

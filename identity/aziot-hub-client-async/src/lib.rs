@@ -191,8 +191,14 @@ impl Client {
                     "{}/devices/{}",
                     hub_device.iothub_hostname, hub_device.device_id
                 );
-                let (connector, token) =
-                    get_sas_connector(&audience, &key, &*self.key_client, self.proxy_uri.clone(), false).await?;
+                let (connector, token) = get_sas_connector(
+                    &audience,
+                    &key,
+                    &*self.key_client,
+                    self.proxy_uri.clone(),
+                    false,
+                )
+                .await?;
 
                 let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -205,8 +211,14 @@ impl Client {
                     "{}/devices/{}",
                     hub_device.iothub_hostname, hub_device.device_id
                 );
-                let (connector, token) =
-                    get_sas_connector(&audience, "", &*self.tpm_client, self.proxy_uri.clone(), false).await?;
+                let (connector, token) = get_sas_connector(
+                    &audience,
+                    "",
+                    &*self.tpm_client,
+                    self.proxy_uri.clone(),
+                    false,
+                )
+                .await?;
 
                 let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -336,8 +348,14 @@ impl Client {
                     "{}/devices/{}",
                     hub_device.iothub_hostname, hub_device.device_id
                 );
-                let (connector, token) =
-                    get_sas_connector(&audience, &key, &*self.key_client, self.proxy_uri.clone(), false).await?;
+                let (connector, token) = get_sas_connector(
+                    &audience,
+                    &key,
+                    &*self.key_client,
+                    self.proxy_uri.clone(),
+                    false,
+                )
+                .await?;
 
                 let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -350,8 +368,14 @@ impl Client {
                     "{}/devices/{}",
                     hub_device.iothub_hostname, hub_device.device_id
                 );
-                let (connector, token) =
-                    get_sas_connector(&audience, "", &*self.tpm_client, self.proxy_uri.clone(), false).await?;
+                let (connector, token) = get_sas_connector(
+                    &audience,
+                    "",
+                    &*self.tpm_client,
+                    self.proxy_uri.clone(),
+                    false,
+                )
+                .await?;
 
                 let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;

@@ -721,8 +721,8 @@ mod tests {
     use crate::auth::{AuthId, Operation, OperationType};
     use crate::SettingsAuthorizer;
 
-    use crate::configext::prepare_authorized_principals;
     use super::{get_proxy_uri, Api};
+    use crate::configext::prepare_authorized_principals;
 
     fn make_empty_settings() -> Settings {
         Settings {

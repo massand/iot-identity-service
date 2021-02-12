@@ -1,16 +1,17 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use hyper::{client::{HttpConnector, connect::Connection}, service::Service};
-use hyper_openssl::{HttpsConnector, MaybeHttpsStream};
-use hyper_proxy::{ProxyConnector, ProxyStream};
-use openssl::pkey::{PKey, Private};
+use std::{
+    future::Future,
+    io,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use std::{future::Future, io, pin::Pin, task::{Context, Poll}};
-
 pub enum MaybeProxyStream<C> {
-    NoProxy(MaybeHttpsStream<C>),
-    Proxy(ProxyStream<MaybeHttpsStream<C>>),
+    NoProxy(hyper_openssl::MaybeHttpsStream<C>),
+    Proxy(hyper_proxy::ProxyStream<hyper_openssl::MaybeHttpsStream<C>>),
 }
 
 impl<C> AsyncRead for MaybeProxyStream<C>
@@ -64,13 +65,13 @@ pub enum MaybeProxyConnector<C> {
     Proxy(hyper_proxy::ProxyConnector<hyper_openssl::HttpsConnector<C>>),
 }
 
-impl MaybeProxyConnector<HttpConnector> {
+impl MaybeProxyConnector<hyper::client::HttpConnector> {
     pub fn build(
         proxy_uri: Option<hyper::Uri>,
-        identity: Option<(PKey<Private>, Vec<u8>)>,
+        identity: Option<(openssl::pkey::PKey<openssl::pkey::Private>, Vec<u8>)>,
     ) -> io::Result<Self> {
         let mut http_connector = hyper::client::HttpConnector::new();
-        
+
         if let Some(proxy_uri) = proxy_uri {
             let proxy = uri_to_proxy(proxy_uri)?;
             let proxy_connector = match identity {
@@ -78,7 +79,7 @@ impl MaybeProxyConnector<HttpConnector> {
                     let https_connector = hyper_openssl::HttpsConnector::new()?;
                     hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?
                 }
-                Some((key, certs)) => { 
+                Some((key, certs)) => {
                     // DEVNOTE: SslConnectionBuilder::build() consumes the builder. So, we need
                     //          to create two copies of it.
                     let mut tls_connector =
@@ -86,31 +87,33 @@ impl MaybeProxyConnector<HttpConnector> {
                     let mut proxy_tls_connector =
                         openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
                     let connectors = vec![tls_connector, proxy_tls_connector];
-                    
-                    let device_id_certs =
-                        openssl::x509::X509::stack_from_pem(&certs)?.into_iter();
+
+                    let device_id_certs = openssl::x509::X509::stack_from_pem(&certs)?.into_iter();
                     let client_cert = device_id_certs.next().ok_or_else(|| {
                         io::Error::new(io::ErrorKind::Other, "device identity cert not found")
                     })?;
 
                     for connector in connectors {
                         connector.set_certificate(&client_cert)?;
-                
+
                         for cert in device_id_certs {
                             connector.add_extra_chain_cert(cert.clone())?;
                         }
-                        
+
                         connector.set_private_key(&key);
                     }
 
                     let mut http_connector = hyper::client::HttpConnector::new();
                     http_connector.enforce_http(false);
-                    let tls_connector =
-                        hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?;
-                    let proxy_connector = hyper_proxy::ProxyConnector::from_proxy(tls_connector, proxy)?;
+                    let tls_connector = hyper_openssl::HttpsConnector::with_connector(
+                        http_connector,
+                        tls_connector,
+                    )?;
+                    let proxy_connector =
+                        hyper_proxy::ProxyConnector::from_proxy(tls_connector, proxy)?;
                     proxy_connector.set_tls(Some(proxy_tls_connector.build()));
                     proxy_connector
-                },
+                }
             };
             Ok(MaybeProxyConnector::Proxy(proxy_connector))
         } else {
@@ -120,10 +123,11 @@ impl MaybeProxyConnector<HttpConnector> {
     }
 }
 
-impl<C> hyper::service::Service<http::uri::Uri> for MaybeProxyConnector<C> 
+impl<C> hyper::service::Service<http::uri::Uri> for MaybeProxyConnector<C>
 where
     C: hyper::service::Service<http::uri::Uri> + Send + Unpin + 'static,
-    C::Response: AsyncRead + AsyncWrite + Connection + Send + Unpin + 'static,
+    C::Response:
+        AsyncRead + AsyncWrite + hyper::client::connect::Connection + Send + Unpin + 'static,
     C::Future: Send + 'static,
     C::Error: Into<Box<dyn std::error::Error + Sync + Send>>,
 {
@@ -131,28 +135,27 @@ where
     type Error = io::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
         std::task::Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, req: http::uri::Uri) -> Self::Future {
         match *self {
-            MaybeProxyConnector::NoProxy(https_stream) => {
-                Box::pin(async move {
-                    match Pin::new(&mut https_stream).call(req).await.map_err(io_err) {
-                        Ok(connect) => Ok(MaybeProxyStream::NoProxy(connect)),
-                        Err(e) => Err(e.into()),
-                    }
-                })
-            }
-            MaybeProxyConnector::Proxy(proxy_stream) => {
-                Box::pin(async move {
-                    match Pin::new(&mut proxy_stream).call(req).await.map_err(io_err) {
-                        Ok(connect) => Ok(MaybeProxyStream::Proxy(connect)),
-                        Err(e) => Err(e.into()),
-                    }
-                })
-            }
+            MaybeProxyConnector::NoProxy(https_stream) => Box::pin(async move {
+                match Pin::new(&mut https_stream).call(req).await.map_err(io_err) {
+                    Ok(connect) => Ok(MaybeProxyStream::NoProxy(connect)),
+                    Err(e) => Err(e.into()),
+                }
+            }),
+            MaybeProxyConnector::Proxy(proxy_stream) => Box::pin(async move {
+                match Pin::new(&mut proxy_stream).call(req).await.map_err(io_err) {
+                    Ok(connect) => Ok(MaybeProxyStream::Proxy(connect)),
+                    Err(e) => Err(e.into()),
+                }
+            }),
         }
     }
 }

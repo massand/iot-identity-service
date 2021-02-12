@@ -230,7 +230,14 @@ impl Client {
             | DpsAuthKind::TpmWithAuth { auth_key: key } => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
                 let (connector, token) = if matches!(auth_kind, DpsAuthKind::SymmetricKey { .. }) {
-                    get_sas_connector(&audience, &key, &*self.key_client, self.proxy_uri.clone(), false).await?
+                    get_sas_connector(
+                        &audience,
+                        &key,
+                        &*self.key_client,
+                        self.proxy_uri.clone(),
+                        false,
+                    )
+                    .await?
                 } else {
                     get_sas_connector(
                         &audience,
