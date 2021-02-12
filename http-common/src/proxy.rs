@@ -1,28 +1,70 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use hyper::client::{HttpConnector, connect::Connection};
-use hyper_openssl::HttpsConnector;
-use hyper_proxy::ProxyConnector;
+use hyper::{client::{HttpConnector, connect::Connection}, service::Service};
+use hyper_openssl::{HttpsConnector, MaybeHttpsStream};
+use hyper_proxy::{ProxyConnector, ProxyStream};
 use openssl::pkey::{PKey, Private};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use std::{future::Future, io, pin::Pin};
+use std::{future::Future, io, pin::Pin, task::{Context, Poll}};
 
-pub enum MaybeProxyStream {
-    NoProxy(HttpsConnector<HttpConnector>),
-    Proxy(ProxyConnector<HttpsConnector<HttpConnector>>),
+pub enum MaybeProxyStream<C> {
+    NoProxy(MaybeHttpsStream<C>),
+    Proxy(ProxyStream<MaybeHttpsStream<C>>),
 }
 
-pub enum MaybeProxyConnector {
-    NoProxy(hyper_openssl::HttpsConnector<hyper::client::HttpConnector>),
-    Proxy(
-        hyper_proxy::ProxyConnector<
-            hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
-        >,
-    ),
+impl<C> AsyncRead for MaybeProxyStream<C>
+where
+    C: AsyncRead + AsyncWrite + Unpin,
+{
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        match &mut *self {
+            MaybeProxyStream::NoProxy(s) => Pin::new(s).poll_read(cx, buf),
+            MaybeProxyStream::Proxy(s) => Pin::new(s).poll_read(cx, buf),
+        }
+    }
 }
 
-impl MaybeProxyConnector {
+impl<C> AsyncWrite for MaybeProxyStream<C>
+where
+    C: AsyncRead + AsyncWrite + Unpin,
+{
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        ctx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        match &mut *self {
+            MaybeProxyStream::NoProxy(s) => Pin::new(s).poll_write(ctx, buf),
+            MaybeProxyStream::Proxy(s) => Pin::new(s).poll_write(ctx, buf),
+        }
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match &mut *self {
+            MaybeProxyStream::NoProxy(s) => Pin::new(s).poll_flush(ctx),
+            MaybeProxyStream::Proxy(s) => Pin::new(s).poll_flush(ctx),
+        }
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match &mut *self {
+            MaybeProxyStream::NoProxy(s) => Pin::new(s).poll_shutdown(ctx),
+            MaybeProxyStream::Proxy(s) => Pin::new(s).poll_shutdown(ctx),
+        }
+    }
+}
+
+pub enum MaybeProxyConnector<C> {
+    NoProxy(hyper_openssl::HttpsConnector<C>),
+    Proxy(hyper_proxy::ProxyConnector<hyper_openssl::HttpsConnector<C>>),
+}
+
+impl MaybeProxyConnector<HttpConnector> {
     pub fn build(
         proxy_uri: Option<hyper::Uri>,
         identity: Option<(PKey<Private>, Vec<u8>)>,
@@ -80,22 +122,44 @@ impl MaybeProxyConnector {
 
 impl<C> hyper::service::Service<http::uri::Uri> for MaybeProxyConnector<C> 
 where
-    C: hyper::service::Service<http::uri::Uri>,
+    C: hyper::service::Service<http::uri::Uri> + Send + Unpin + 'static,
     C::Response: AsyncRead + AsyncWrite + Connection + Send + Unpin + 'static,
     C::Future: Send + 'static,
     C::Error: Into<Box<dyn std::error::Error + Sync + Send>>,
 {
-    type Response = MaybeProxyStream;
+    type Response = MaybeProxyStream<C::Response>;
     type Error = io::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-        todo!()
+        std::task::Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, req: http::uri::Uri) -> Self::Future {
-        todo!()
+        match *self {
+            MaybeProxyConnector::NoProxy(https_stream) => {
+                Box::pin(async move {
+                    match Pin::new(&mut https_stream).call(req).await.map_err(io_err) {
+                        Ok(connect) => Ok(MaybeProxyStream::NoProxy(connect)),
+                        Err(e) => Err(e.into()),
+                    }
+                })
+            }
+            MaybeProxyConnector::Proxy(proxy_stream) => {
+                Box::pin(async move {
+                    match Pin::new(&mut proxy_stream).call(req).await.map_err(io_err) {
+                        Ok(connect) => Ok(MaybeProxyStream::Proxy(connect)),
+                        Err(e) => Err(e.into()),
+                    }
+                })
+            }
+        }
     }
+}
+
+#[inline]
+pub(crate) fn io_err<E: Into<Box<dyn std::error::Error + Send + Sync>>>(e: E) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, e)
 }
 
 pub fn uri_to_proxy(uri: hyper::Uri) -> io::Result<hyper_proxy::Proxy> {
