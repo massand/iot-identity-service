@@ -196,21 +196,15 @@ impl std::fmt::Display for Connector {
                 let mut url: url::Url = "http://foo"
                     .parse()
                     .expect("hard-coded URL parses successfully");
-                url.set_host(Some(host)).map_err(|_| {
-                    std::fmt::Error
-                })?;
+                url.set_host(Some(host)).map_err(|_| std::fmt::Error)?;
                 if *port != 80 {
-                    url.set_port(Some(*port)).map_err(|()| {
-                        std::fmt::Error
-                    })?;
+                    url.set_port(Some(*port)).map_err(|()| std::fmt::Error)?;
                 }
                 url
             }
 
             Connector::Unix { socket_path } => {
-                let socket_path = socket_path.to_str().ok_or_else(|| {
-                    std::fmt::Error
-                })?;
+                let socket_path = socket_path.to_str().ok_or_else(|| std::fmt::Error)?;
 
                 let mut url: url::Url = "unix:///foo"
                     .parse()

@@ -65,7 +65,7 @@ where
 }
 
 #[cfg(feature = "tokio1")]
-impl<C> hyper::client::connect::Connection for MaybeProxyStream<C> 
+impl<C> hyper::client::connect::Connection for MaybeProxyStream<C>
 where
     C: AsyncRead + AsyncWrite + Unpin,
 {

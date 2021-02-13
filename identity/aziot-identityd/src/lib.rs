@@ -688,46 +688,8 @@ mod tests {
     use crate::auth::{AuthId, Operation, OperationType};
     use crate::SettingsAuthorizer;
 
-    use super::{get_proxy_uri, Api};
+    use super::get_proxy_uri;
     use crate::configext::prepare_authorized_principals;
-
-    fn make_empty_settings() -> Settings {
-        Settings {
-            hostname: Default::default(),
-            homedir: Default::default(),
-            principal: Default::default(),
-            provisioning: Provisioning {
-                provisioning: ProvisioningType::Manual {
-                    iothub_hostname: Default::default(),
-                    device_id: Default::default(),
-                    authentication: ManualAuthMethod::SharedPrivateKey {
-                        device_id_pk: Default::default(),
-                    },
-                },
-                dynamic_reprovisioning: Default::default(),
-            },
-            // Use unreachable endpoints for the defaults.
-            endpoints: Endpoints {
-                aziot_certd: Connector::Tcp {
-                    host: "localhost".into(),
-                    port: 0,
-                },
-                aziot_identityd: Connector::Tcp {
-                    host: "localhost".into(),
-                    port: 0,
-                },
-                aziot_keyd: Connector::Tcp {
-                    host: "localhost".into(),
-                    port: 0,
-                },
-                aziot_tpmd: Connector::Tcp {
-                    host: "localhost".into(),
-                    port: 0,
-                },
-            },
-            localid: Default::default(),
-        }
-    }
 
     #[test]
     fn convert_to_map_creates_principal_lookup() {
