@@ -196,12 +196,12 @@ impl std::fmt::Display for Connector {
                 let mut url: url::Url = "http://foo"
                     .parse()
                     .expect("hard-coded URL parses successfully");
-                url.set_host(Some(host)).map_err(|err| {
-                    serde::ser::Error::custom(format!("could not set host {:?}: {:?}", host, err))
+                url.set_host(Some(host)).map_err(|_| {
+                    std::fmt::Error
                 })?;
                 if *port != 80 {
                     url.set_port(Some(*port)).map_err(|()| {
-                        serde::ser::Error::custom(format!("could not set port {:?}", port))
+                        std::fmt::Error
                     })?;
                 }
                 url
@@ -209,10 +209,7 @@ impl std::fmt::Display for Connector {
 
             Connector::Unix { socket_path } => {
                 let socket_path = socket_path.to_str().ok_or_else(|| {
-                    serde::ser::Error::custom(format!(
-                        "socket path {} cannot be serialized as a utf-8 string",
-                        socket_path.display()
-                    ))
+                    std::fmt::Error
                 })?;
 
                 let mut url: url::Url = "unix:///foo"

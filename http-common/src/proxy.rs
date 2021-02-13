@@ -65,6 +65,19 @@ where
 }
 
 #[cfg(feature = "tokio1")]
+impl<C> hyper::client::connect::Connection for MaybeProxyStream<C> 
+where
+    C: AsyncRead + AsyncWrite + Unpin,
+{
+    fn connected(&self) -> hyper::client::connect::Connected {
+        match self {
+            MaybeProxyStream::NoProxy(_) => hyper::client::connect::Connected::new(),
+            MaybeProxyStream::Proxy(_) => hyper::client::connect::Connected::new(),
+        }
+    }
+}
+
+#[cfg(feature = "tokio1")]
 #[derive(Clone)]
 pub enum MaybeProxyConnector<C> {
     NoProxy(C),
