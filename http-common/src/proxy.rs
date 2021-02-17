@@ -155,7 +155,6 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
             };
             Ok(MaybeProxyConnector::Proxy(proxy_connector))
         } else {
-            let https_connector = hyper_openssl::HttpsConnector::new()?;
             Ok(MaybeProxyConnector::NoProxy(https_connector))
         }
     }
@@ -176,9 +175,18 @@ where
 
     fn poll_ready(
         &mut self,
-        _cx: &mut std::task::Context<'_>,
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
+        let poll_status = match self {
+            MaybeProxyConnector::NoProxy(https_connector) => https_connector.poll_ready(cx).map_err(|e| io::Error::new(io::ErrorKind::Other, e).into()),
+            MaybeProxyConnector::Proxy(proxy_connector) => proxy_connector.poll_ready(cx),
+        };
+
+        match poll_status {
+            Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
+            Poll::Ready(Err(e)) => Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, e).into())),
+            Poll::Pending => Poll::Pending,
+        }
     }
 
     fn call(&mut self, req: http::uri::Uri) -> Self::Future {
