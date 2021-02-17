@@ -204,7 +204,7 @@ impl std::fmt::Display for Connector {
             }
 
             Connector::Unix { socket_path } => {
-                let socket_path = socket_path.to_str().ok_or_else(|| std::fmt::Error)?;
+                let socket_path = socket_path.to_str().ok_or(std::fmt::Error)?;
 
                 let mut url: url::Url = "unix:///foo"
                     .parse()
