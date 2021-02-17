@@ -90,18 +90,46 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
         proxy_uri: Option<hyper::Uri>,
         identity: Option<(openssl::pkey::PKey<openssl::pkey::Private>, Vec<u8>)>,
     ) -> io::Result<Self> {
+        let https_connector = match identity.clone() {
+            None => {
+                hyper_openssl::HttpsConnector::new()?
+            }
+            Some((key, certs)) => {
+                let mut tls_connector =
+                    openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
+
+                let mut device_id_certs =
+                    openssl::x509::X509::stack_from_pem(&certs)?.into_iter();
+                let client_cert = device_id_certs.next().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::Other, "device identity cert not found")
+                })?;
+
+                tls_connector.set_certificate(&client_cert)?;
+
+                for cert in device_id_certs {
+                    tls_connector.add_extra_chain_cert(cert.clone())?;
+                }
+
+                tls_connector.set_private_key(&key)?;
+
+                let mut http_connector = hyper::client::HttpConnector::new();
+                http_connector.enforce_http(false);
+                hyper_openssl::HttpsConnector::with_connector(
+                    http_connector,
+                    tls_connector,
+                )?
+            }
+        };
+        
         if let Some(proxy_uri) = proxy_uri {
             let proxy = uri_to_proxy(proxy_uri)?;
             let proxy_connector = match identity {
                 None => {
-                    let https_connector = hyper_openssl::HttpsConnector::new()?;
                     hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?
                 }
                 Some((key, certs)) => {
                     // DEVNOTE: SslConnectionBuilder::build() consumes the builder. So, we need
                     //          to create two copies of it.
-                    let mut tls_connector =
-                        openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
                     let mut proxy_tls_connector =
                         openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
 
@@ -111,25 +139,16 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
                         io::Error::new(io::ErrorKind::Other, "device identity cert not found")
                     })?;
 
-                    tls_connector.set_certificate(&client_cert)?;
                     proxy_tls_connector.set_certificate(&client_cert)?;
 
                     for cert in device_id_certs {
-                        tls_connector.add_extra_chain_cert(cert.clone())?;
                         proxy_tls_connector.add_extra_chain_cert(cert.clone())?;
                     }
 
-                    tls_connector.set_private_key(&key)?;
                     proxy_tls_connector.set_private_key(&key)?;
 
-                    let mut http_connector = hyper::client::HttpConnector::new();
-                    http_connector.enforce_http(false);
-                    let tls_connector = hyper_openssl::HttpsConnector::with_connector(
-                        http_connector,
-                        tls_connector,
-                    )?;
                     let mut proxy_connector =
-                        hyper_proxy::ProxyConnector::from_proxy(tls_connector, proxy)?;
+                        hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?;
                     proxy_connector.set_tls(Some(proxy_tls_connector.build()));
                     proxy_connector
                 }
