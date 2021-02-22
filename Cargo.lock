@@ -117,7 +117,7 @@ dependencies = [
  "aziot-key-openssl-engine",
  "base64",
  "config-common",
- "foreign-types-shared",
+ "foreign-types-shared 0.3.0",
  "futures-util",
  "hex",
  "http",
@@ -355,7 +355,7 @@ dependencies = [
  "aziot-key-client",
  "aziot-key-common",
  "base64",
- "foreign-types-shared",
+ "foreign-types-shared 0.3.0",
  "log",
  "openssl",
  "openssl-build",
@@ -440,7 +440,7 @@ name = "aziot-keys"
 version = "0.1.0"
 dependencies = [
  "aziot-keys-common",
- "foreign-types-shared",
+ "foreign-types-shared 0.3.0",
  "hex",
  "hmac",
  "lazy_static",
@@ -950,7 +950,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6f339eb8adc052cd2ca78910fda869aefa38d22d5cb648e6485e4d3fc06f3b1"
 dependencies = [
- "foreign-types-shared",
+ "foreign-types-shared 0.1.1",
 ]
 
 [[package]]
@@ -958,6 +958,12 @@ name = "foreign-types-shared"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
+
+[[package]]
+name = "foreign-types-shared"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7684cf33bb7f28497939e8c7cf17e3e4e3b8d9a0080ffa4f8ae2f515442ee855"
 
 [[package]]
 name = "form_urlencoded"
@@ -1377,7 +1383,7 @@ dependencies = [
  "aziot-key-openssl-engine",
  "base64",
  "chrono",
- "foreign-types-shared",
+ "foreign-types-shared 0.3.0",
  "http-common",
  "hyper",
  "hyper-openssl",
@@ -1747,7 +1753,7 @@ name = "openssl2"
 version = "0.1.0"
 dependencies = [
  "foreign-types",
- "foreign-types-shared",
+ "foreign-types-shared 0.3.0",
  "openssl",
  "openssl-build",
  "openssl-sys",
@@ -1821,7 +1827,7 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 name = "pkcs11"
 version = "0.1.0"
 dependencies = [
- "foreign-types-shared",
+ "foreign-types-shared 0.3.0",
  "itertools",
  "lazy_static",
  "libc",

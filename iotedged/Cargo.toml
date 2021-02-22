@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 base64 = "0.13"
 chrono = "0.4"
-foreign-types-shared = "0.1"
+foreign-types-shared = "0.3"
 hyper = "0.14"
 hyper-openssl = "0.9"
 openssl = "0.10"

@@ -9,7 +9,7 @@ build = "build/main.rs"
 [dependencies]
 async-trait = "0.1"
 base64 = "0.13"
-foreign-types-shared = "0.1"
+foreign-types-shared = "0.3"
 futures-util = "0.3"
 hex = "0.4"
 http = "0.2"
