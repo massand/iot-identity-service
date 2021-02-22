@@ -1,0 +1,9 @@
+version: 2
+updates:
+  # Enable version updates for Cargo packages
+  - package-ecosystem: "cargo"
+    # Look for `lock` files in the `root` directory
+    directory: "/"
+    # Check cargo for updates every day (weekdays)
+    schedule:
+      interval: "daily"
