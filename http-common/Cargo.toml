@@ -15,7 +15,7 @@ hyper-openssl = { version = "0.9", optional = true }
 hyper-proxy = { git = "https://github.com/Azure/hyper-proxy.git", features = ["openssl-tls"], default-features = false, optional = true }
 libc = "0.2"
 log = "0.4"
-nix = "0.18"
+nix = "0.20"
 openssl = { version = "0.10", optional = true }
 percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }
