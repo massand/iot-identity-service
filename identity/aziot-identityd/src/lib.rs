@@ -383,6 +383,8 @@ impl Api {
                     .await?
             }
             ReprovisionTrigger::Api => {
+                //TODO: Check if there is a way to centralize this removal (and module_info removal)
+
                 // Clear the backed up device state before reprovisioning.
                 // If this fails, log a warning but continue with reprovisioning.
                 let mut backup_file = self.settings.homedir.clone();
@@ -428,9 +430,14 @@ impl Api {
                             .await?;
                         log::info!("Successfully reprovisioned.");
 
+                        //TODO: If provision_device fails anytime, we should move to backup device and module identities to support offline
+
                         self.id_manager
                             .reconcile_hub_identities(self.settings.clone())
                             .await?;
+
+                        //TODO: If reconcile_hub_identities fails anytime, we should move to backup module identities to support offline.
+                        //This is basically "edgeAgent deployment configuration stored in twin" behavior
                     }
 
                     // Don't attempt to reprovision if this function was called by the reprovision API.

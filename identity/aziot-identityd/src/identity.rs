@@ -12,7 +12,7 @@ const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
 pub struct IdentityManager {
-    locks: std::sync::Mutex<std::collections::BTreeMap<String, Arc<std::sync::Mutex<()>>>>,
+    hub_modules: std::sync::Mutex<std::collections::BTreeMap<String, Arc<std::sync::Mutex<aziot_identity_common::hub::Module>>>>,
     homedir_path: std::path::PathBuf,
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
@@ -33,13 +33,13 @@ impl IdentityManager {
         proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         IdentityManager {
-            locks: Default::default(),
+            hub_modules: Default::default(),
             homedir_path,
             key_client,
             key_engine,
             cert_client,
             tpm_client,
-            iot_hub_device, //set by Server over futures channel
+            iot_hub_device,
             proxy_uri,
         }
     }
@@ -96,6 +96,20 @@ impl IdentityManager {
                     )
                     .await
                     .map_err(Error::HubClient)?;
+
+                
+                // let module = client
+                // .get_module(&*module_id)
+                // .await
+                // .map_err(|e| {
+                //     if e.kind() == ErrorKind::whatever {
+                //         //use backup
+                //     }
+                // else {
+                //     e
+                // })?;
+
+                // Upsert module into local store
 
                 let identity =
                     aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
@@ -163,6 +177,19 @@ impl IdentityManager {
                     .await
                     .map_err(Error::HubClient)?;
 
+                // let module = client
+                // .get_module(&*module_id)
+                // .await
+                // .map_err(|e| {
+                //     if e.kind() == ErrorKind::whatever {
+                //         //use backup
+                //     }
+                // else {
+                //     e
+                // })?;
+
+                // TODO: Upsert module into local store
+
                 let identity =
                     aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
                         hub_name: device.iothub_hostname.clone(),
@@ -222,6 +249,19 @@ impl IdentityManager {
                     .await
                     .map_err(Error::HubClient)?;
 
+                    // let module = client
+                    // .get_module(&*module_id)
+                    // .await
+                    // .map_err(|e| {
+                    //     if e.kind() == ErrorKind::whatever {
+                    //         //use backup
+                    //     }
+                    // else {
+                    //     e
+                    // })?;
+
+                    // Upsert module into local store
+
                 let master_id_key_handle = self.get_master_identity_key().await?;
                 let (primary_key_handle, _, _, _) = self
                     .get_module_derived_keys(master_id_key_handle, module.clone())
@@ -262,6 +302,19 @@ impl IdentityManager {
                 );
 
                 let response = client.get_modules().await.map_err(Error::HubClient)?;
+
+                // let module = client
+                    // .get_modules()
+                    // .await
+                    // .map_err(|e| {
+                    //     if e.kind() == ErrorKind::whatever {
+                    //         //use backup
+                    //     }
+                    // else {
+                    //     e
+                    // })?;
+
+                    // Upsert modules into local store
 
                 let identities = response
                     .into_iter()
@@ -306,6 +359,8 @@ impl IdentityManager {
                     .delete_module(&*module_id)
                     .await
                     .map_err(Error::HubClient)
+
+                // Remove module from local store
             }
             None => Err(Error::DeviceNotFound),
         }
@@ -724,6 +779,10 @@ impl IdentityManager {
 
         match &self.iot_hub_device {
             Some(device) => {
+                
+                // Encapsulate the device_info update along with "module_info" for offline store
+                // Make sure module_info is wiped when device_info is wiped
+                
                 let mut prev_settings_path = self.homedir_path.clone();
                 prev_settings_path.push("prev_state");
 
