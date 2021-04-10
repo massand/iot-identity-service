@@ -36,6 +36,7 @@ aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common", features = ["tokio1"] }
 openssl2 = { path = "../../openssl2" }
+openssl-sys2 = { path = "../../openssl-sys2" }
 
 
 [build-dependencies]

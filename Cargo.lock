@@ -130,6 +130,7 @@ dependencies = [
  "openssl",
  "openssl-build",
  "openssl-sys",
+ "openssl-sys2",
  "openssl2",
  "percent-encoding",
  "regex",

@@ -134,6 +134,16 @@ impl Api {
     pub fn get_cert(&mut self, id: &str) -> Result<Vec<u8>, Error> {
         let bytes = get_cert_inner(&self.homedir_path, &self.preloaded_certs, id)?
             .ok_or_else(|| Error::invalid_parameter("id", "not found"))?;
+
+        let cert_options = self.cert_issuance.certs.get(id);
+        if let Some(option) = cert_options {
+            match option.method {
+                CertIssuanceMethod::Est => {}
+                CertIssuanceMethod::LocalCa => {}
+                CertIssuanceMethod::SelfSigned => {}
+            }
+        }
+
         Ok(bytes)
     }
 
@@ -804,6 +814,9 @@ fn create_cert<'a>(
 
                     let x509 = create_cert(api, id, csr, Some((&issuer_cert, &issuer_private_key)))
                         .await?;
+
+                    // Verify issuer matches
+
                     Ok(x509)
                 }
 
@@ -866,4 +879,43 @@ fn principal_to_map(
     }
 
     result
+}
+
+fn verify_cert(
+    cert: &openssl::x509::X509Ref,
+    cert_priv_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
+    issuer_cert: &openssl::x509::X509Ref,
+    issuer_cert_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
+) -> Result<(), Error> {
+    unsafe {
+        openssl2::openssl_returns_1(openssl_sys2::X509_check_private_key(
+            foreign_types_shared::ForeignTypeRef::as_ptr(cert),
+            foreign_types_shared::ForeignTypeRef::as_ptr(cert_priv_key),
+        ))
+        .map_err(|err| Error::Internal(InternalError::CertVerification(Box::new(err))))?;
+    }
+
+    if cert.signature().as_slice().is_empty() {
+        return Err(Error::Internal(InternalError::CertVerification(
+            format!("cert has missing signature").into(),
+        )));
+    };
+
+    if !cert
+        .verify(issuer_cert_key)
+        .map_err(|err| Error::Internal(InternalError::CertVerification(Box::new(err))))?
+    {
+        return Err(Error::Internal(InternalError::CertVerification(
+            format!("cert issuer verification failed").into(),
+        )));
+    }
+
+    let issued_result = issuer_cert.issued(cert);
+    if issued_result != openssl::x509::X509VerifyResult::OK {
+        return Err(Error::Internal(InternalError::CertVerification(
+            format!("cert issuer does not match").into(),
+        )));
+    }
+
+    Ok(())
 }

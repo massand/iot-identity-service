@@ -47,6 +47,7 @@ impl std::error::Error for Error {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum InternalError {
+    CertVerification(Box<dyn std::error::Error + Send + Sync>),
     CreateCert(Box<dyn std::error::Error + Send + Sync>),
     DeleteFile(std::io::Error),
     GetPath(Box<dyn std::error::Error + Send + Sync>),
@@ -58,6 +59,7 @@ pub enum InternalError {
 impl std::fmt::Display for InternalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            InternalError::CertVerification(_) => f.write_str("could not verify cert"),
             InternalError::CreateCert(_) => f.write_str("could not create cert"),
             InternalError::DeleteFile(_) => f.write_str("could not delete cert file"),
             InternalError::GetPath(_) => {
@@ -76,6 +78,7 @@ impl std::error::Error for InternalError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         #[allow(clippy::match_same_arms)]
         match self {
+            InternalError::CertVerification(err) => Some(&**err),
             InternalError::CreateCert(err) => Some(&**err),
             InternalError::DeleteFile(err) => Some(err),
             InternalError::GetPath(err) => Some(&**err),
