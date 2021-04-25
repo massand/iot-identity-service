@@ -17,8 +17,10 @@ use std::sync::Arc;
 
 use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector};
 
-pub const IOT_HUB_ENCODE_SET: &percent_encoding::AsciiSet =
+const IOT_HUB_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
+
+const IOT_HUB_API_VERSION: &str = "2017-11-08-preview";
 
 pub struct Client {
     device: aziot_identity_common::IoTHubDevice,
@@ -58,9 +60,10 @@ impl Client {
         managed_by: Option<String>,
     ) -> Result<aziot_identity_common::hub::Module, std::io::Error> {
         let uri = format!(
-            "/devices/{}/modules/{}?api-version=2017-11-08-preview",
+            "/devices/{}/modules/{}?api-version={}",
             percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
             percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
+            IOT_HUB_API_VERSION,
         );
 
         let body = aziot_identity_common::hub::Module {
@@ -85,9 +88,10 @@ impl Client {
         managed_by: Option<String>,
     ) -> Result<aziot_identity_common::hub::Module, std::io::Error> {
         let uri = format!(
-            "/devices/{}/modules/{}?api-version=2017-11-08-preview",
+            "/devices/{}/modules/{}?api-version={}",
             percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
             percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
+            IOT_HUB_API_VERSION,
         );
 
         let body = aziot_identity_common::hub::Module {
@@ -109,9 +113,10 @@ impl Client {
         module_id: &str,
     ) -> Result<aziot_identity_common::hub::Module, std::io::Error> {
         let uri = format!(
-            "/devices/{}/modules/{}?api-version=2017-11-08-preview",
+            "/devices/{}/modules/{}?api-version={}",
             percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
             percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
+            IOT_HUB_API_VERSION,
         );
 
         let res: aziot_identity_common::hub::Module = self
@@ -124,8 +129,9 @@ impl Client {
         &self,
     ) -> Result<Vec<aziot_identity_common::hub::Module>, std::io::Error> {
         let uri = format!(
-            "/devices/{}/modules?api-version=2017-11-08-preview",
+            "/devices/{}/modules?api-version={}",
             percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
+            IOT_HUB_API_VERSION,
         );
 
         let res: Vec<aziot_identity_common::hub::Module> = self
@@ -136,9 +142,10 @@ impl Client {
 
     pub async fn delete_module(&self, module_id: &str) -> Result<(), std::io::Error> {
         let uri = format!(
-            "/devices/{}/modules/{}?api-version=2017-11-08-preview",
+            "/devices/{}/modules/{}?api-version={}",
             percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
             percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
+            IOT_HUB_API_VERSION,
         );
 
         let () = self

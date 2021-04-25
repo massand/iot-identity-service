@@ -690,6 +690,10 @@ impl IdentityManager {
         assert!(!status.eq_ignore_ascii_case("assigning"));
 
         let mut state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
+        
+        //TODO: If substatus != ReprovisionedToInitialAssignment then rotate master identity key and flip last provision timestamp using DPS time.
+        //      Daemon will detect the change on next reprovision. 
+        
         let iothub_hostname = state.assigned_hub.get_or_insert("".into());
         let device_id = state.device_id.get_or_insert("".into());
         let device = aziot_identity_common::IoTHubDevice {

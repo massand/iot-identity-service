@@ -28,6 +28,8 @@ const DPS_ASSIGNMENT_TIMEOUT_SECS: u64 = 120;
 pub const DPS_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
+const DPS_API_VERSION: &str = "2018-11-01";
+
 #[derive(Clone)]
 pub enum DpsAuthKind {
     SymmetricKey {
@@ -83,8 +85,9 @@ impl Client {
         auth_kind: &DpsAuthKind,
     ) -> Result<model::RegistrationOperationStatus, std::io::Error> {
         let resource_uri = format!(
-            "{}/registrations/{}/register?api-version=2018-11-01",
-            self.scope_id, registration_id
+            "{}/registrations/{}/register?api-version={}",
+            self.scope_id, registration_id,
+            DPS_API_VERSION,
         );
 
         let body = match auth_kind {
@@ -123,8 +126,9 @@ impl Client {
 
         // spin until the registration has completed successfully
         let resource_uri = format!(
-            "{}/registrations/{}/operations/{}?api-version=2018-11-01",
-            self.scope_id, registration_id, res.operation_id
+            "{}/registrations/{}/operations/{}?api-version={}",
+            self.scope_id, registration_id, res.operation_id,
+            DPS_API_VERSION,
         );
 
         let mut retry_count =
@@ -287,6 +291,9 @@ impl Client {
         ) = res.into_parts();
         log::debug!("DPS response status {:?}", status);
         log::debug!("DPS response headers{:?}", headers);
+        //TODO: REMOVE ME
+        log::debug!("DPS response body {:?}", body);
+
 
         let mut is_json = false;
         for (header_name, header_value) in headers {
